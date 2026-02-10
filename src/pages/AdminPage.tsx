@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Pencil, X, Calendar, Clock, AlertCircle, CheckCircle2, Image, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, Pencil, X, Calendar, Clock, AlertCircle, CheckCircle2, Image, ChevronRight, Zap } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { challengesApi, submissionApi } from '../services/api'
 import type { Challenge, DayInfo, Submission, ChallengeRequest } from '../types'
@@ -18,12 +18,14 @@ export default function AdminPage() {
     // Modal state
     const [showModal, setShowModal] = useState(false)
     const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null)
+    const [challengeType, setChallengeType] = useState<'single-day' | 'custom'>('custom')
     const [formData, setFormData] = useState({
         title: '',
         description: '',
         startTime: '',
         limitTime: '',
         dayNumber: 1,
+        time: '', // For single-day challenges
     })
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -88,12 +90,14 @@ export default function AdminPage() {
 
     const openCreateModal = () => {
         setEditingChallenge(null)
+        setChallengeType('custom')
         setFormData({
             title: '',
             description: '',
             startTime: '',
             limitTime: '',
             dayNumber: selectedDay || 1,
+            time: '',
         })
         setError(null)
         setSuccess(null)
@@ -102,12 +106,15 @@ export default function AdminPage() {
 
     const openEditModal = (challenge: Challenge) => {
         setEditingChallenge(challenge)
+        setChallengeType('custom')
+        const timeOnly = challenge.startTime.slice(11, 16) // Extract HH:mm
         setFormData({
             title: challenge.title,
             description: challenge.description || '',
             startTime: challenge.startTime.slice(0, 16),
             limitTime: challenge.limitTime.slice(0, 16),
             dayNumber: challenge.dayNumber,
+            time: timeOnly,
         })
         setError(null)
         setSuccess(null)
@@ -129,11 +136,26 @@ export default function AdminPage() {
         setSuccess(null)
 
         try {
+            let startTime: string
+            let limitTime: string
+
+            if (challengeType === 'single-day') {
+                // For single-day challenges, use today's date with the selected time
+                const today = new Date()
+                const dateStr = today.toISOString().split('T')[0] // YYYY-MM-DD
+                startTime = `${dateStr}T${formData.time}:00`
+                limitTime = `${dateStr}T${formData.time}:00`
+            } else {
+                // For custom challenges, use the datetime inputs
+                startTime = formData.startTime + ':00'
+                limitTime = formData.limitTime + ':00'
+            }
+
             const data: ChallengeRequest = {
                 title: formData.title,
                 description: formData.description,
-                startTime: formData.startTime + ':00',
-                limitTime: formData.limitTime + ':00',
+                startTime,
+                limitTime,
                 dayNumber: formData.dayNumber,
             }
 
@@ -195,29 +217,28 @@ export default function AdminPage() {
         <div className="min-h-screen bg-gray-950 pt-20">
             <div className="max-w-6xl mx-auto px-4 py-8">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-white">Administración</h1>
-                        <p className="text-gray-400 mt-1">Gestiona los retos del campamento</p>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-white">Administración</h1>
+                        <p className="text-gray-400 mt-1 text-sm sm:text-base">Gestiona los retos del campamento</p>
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3">
                         <button
                             onClick={() => {
                                 setShowSubmissions(!showSubmissions)
                                 if (!showSubmissions) loadSubmissions()
                             }}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition ${
-                                showSubmissions
+                            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium transition text-sm sm:text-base ${showSubmissions
                                     ? 'bg-blue-600 text-white'
                                     : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                            }`}
+                                }`}
                         >
                             <Image size={18} />
                             Ver Fotos
                         </button>
                         <button
                             onClick={openCreateModal}
-                            className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition"
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg font-medium hover:bg-orange-600 transition text-sm sm:text-base"
                         >
                             <Plus size={18} />
                             Nuevo Reto
@@ -246,7 +267,7 @@ export default function AdminPage() {
                                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-orange-500 border-t-transparent"></div>
                             </div>
                         ) : submissions.length > 0 ? (
-                            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                                 {submissions.map((sub) => (
                                     <div
                                         key={sub.id}
@@ -276,142 +297,169 @@ export default function AdminPage() {
                     </div>
                 ) : (
                     /* Challenges View */
-                    <div className="grid lg:grid-cols-4 gap-6">
-                        {/* Sidebar - Days */}
-                        <div className="lg:col-span-1">
-                            <div className="bg-gray-900 rounded-lg border border-gray-800 p-4">
-                                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">
-                                    Días del Campamento
-                                </h3>
-                                {loading ? (
-                                    <p className="text-gray-500 text-sm">Cargando...</p>
-                                ) : days.length === 0 ? (
-                                    <p className="text-gray-500 text-sm">Sin días creados</p>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {days.map((day) => (
-                                            <button
-                                                key={day.day}
-                                                onClick={() => setSelectedDay(day.day)}
-                                                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition ${
-                                                    selectedDay === day.day
-                                                        ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                                                        : 'text-gray-300 hover:bg-gray-800'
+                    <div className="space-y-6">
+                        {/* Days Selector - Horizontal on mobile */}
+                        <div className="lg:hidden">
+                            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">
+                                Días del Campamento
+                            </h3>
+                            {loading ? (
+                                <p className="text-gray-500 text-sm">Cargando...</p>
+                            ) : days.length === 0 ? (
+                                <p className="text-gray-500 text-sm">Sin días creados</p>
+                            ) : (
+                                <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+                                    {days.map((day) => (
+                                        <button
+                                            key={day.day}
+                                            onClick={() => setSelectedDay(day.day)}
+                                            className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition ${selectedDay === day.day
+                                                    ? 'bg-orange-500 text-white'
+                                                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                                                 }`}
-                                            >
-                                                <span className="font-medium">Día {day.day}</span>
-                                                <span className="text-xs text-gray-500">{day.challengeCount} retos</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                                
-                                {/* Quick add day */}
-                                <button
-                                    onClick={() => {
-                                        const newDay = days.length > 0 ? Math.max(...days.map(d => d.day)) + 1 : 1
-                                        setFormData(prev => ({ ...prev, dayNumber: newDay }))
-                                        openCreateModal()
-                                    }}
-                                    className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-gray-700 rounded-lg text-gray-500 hover:border-orange-500/50 hover:text-orange-400 transition text-sm"
-                                >
-                                    <Plus size={16} />
-                                    Añadir día
-                                </button>
-                            </div>
+                                        >
+                                            Día {day.day} ({day.challengeCount})
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
-                        {/* Main content - Challenges */}
-                        <div className="lg:col-span-3">
-                            {selectedDay !== null ? (
-                                <>
-                                    <div className="flex items-center justify-between mb-4">
-                                        <h2 className="text-xl font-semibold text-white">
-                                            Retos del Día {selectedDay}
-                                        </h2>
-                                        <span className="text-sm text-gray-500">
-                                            {challenges.length} {challenges.length === 1 ? 'reto' : 'retos'}
-                                        </span>
-                                    </div>
-
-                                    {challenges.length === 0 ? (
-                                        <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
-                                            <Calendar size={48} className="text-gray-700 mx-auto mb-3" />
-                                            <p className="text-gray-500 mb-4">No hay retos para este día</p>
-                                            <button
-                                                onClick={openCreateModal}
-                                                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition"
-                                            >
-                                                <Plus size={16} />
-                                                Crear primer reto
-                                            </button>
-                                        </div>
+                        <div className="grid lg:grid-cols-4 gap-6">
+                            {/* Sidebar - Days (Desktop only) */}
+                            <div className="hidden lg:block lg:col-span-1">
+                                <div className="bg-gray-900 rounded-lg border border-gray-800 p-4 sticky top-24">
+                                    <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">
+                                        Días del Campamento
+                                    </h3>
+                                    {loading ? (
+                                        <p className="text-gray-500 text-sm">Cargando...</p>
+                                    ) : days.length === 0 ? (
+                                        <p className="text-gray-500 text-sm">Sin días creados</p>
                                     ) : (
-                                        <div className="space-y-3">
-                                            {challenges.map((ch) => (
-                                                <div
-                                                    key={ch.id}
-                                                    className="bg-gray-900 rounded-lg border border-gray-800 p-4 hover:border-gray-700 transition"
+                                        <div className="space-y-2">
+                                            {days.map((day) => (
+                                                <button
+                                                    key={day.day}
+                                                    onClick={() => setSelectedDay(day.day)}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition ${selectedDay === day.day
+                                                            ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                                                            : 'text-gray-300 hover:bg-gray-800'
+                                                        }`}
                                                 >
-                                                    <div className="flex items-start justify-between gap-4">
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-3 mb-2">
-                                                                <h3 className="text-lg font-semibold text-white truncate">
-                                                                    {ch.title}
-                                                                </h3>
-                                                                <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                                                                    ch.status === 'COMPLETED'
-                                                                        ? 'bg-green-500/20 text-green-400'
-                                                                        : ch.status === 'EXPIRED'
-                                                                            ? 'bg-red-500/20 text-red-400'
-                                                                            : 'bg-yellow-500/20 text-yellow-400'
-                                                                }`}>
-                                                                    {ch.status === 'COMPLETED' ? 'Completado' : ch.status === 'EXPIRED' ? 'Expirado' : 'Activo'}
-                                                                </span>
-                                                            </div>
-                                                            {ch.description && (
-                                                                <p className="text-gray-400 text-sm mb-3">{ch.description}</p>
-                                                            )}
-                                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                                                                <span className="flex items-center gap-1">
-                                                                    <Clock size={12} />
-                                                                    {new Date(ch.startTime).toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                                </span>
-                                                                <span className="flex items-center gap-1">
-                                                                    <ChevronRight size={12} />
-                                                                    {new Date(ch.limitTime).toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                                </span>
-                                                                <span>{ch.submissionCount} fotos</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <button
-                                                                onClick={() => openEditModal(ch)}
-                                                                className="p-2 text-gray-400 hover:text-orange-400 hover:bg-gray-800 rounded-lg transition"
-                                                                title="Editar"
-                                                            >
-                                                                <Pencil size={18} />
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setDeleteConfirm(ch.id)}
-                                                                className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition"
-                                                                title="Eliminar"
-                                                            >
-                                                                <Trash2 size={18} />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                                    <span className="font-medium">Día {day.day}</span>
+                                                    <span className="text-xs text-gray-500">{day.challengeCount} retos</span>
+                                                </button>
                                             ))}
                                         </div>
                                     )}
-                                </>
-                            ) : (
-                                <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
-                                    <Calendar size={48} className="text-gray-700 mx-auto mb-3" />
-                                    <p className="text-gray-500">Selecciona un día o crea el primero</p>
+
+                                    {/* Quick add day */}
+                                    <button
+                                        onClick={() => {
+                                            const newDay = days.length > 0 ? Math.max(...days.map(d => d.day)) + 1 : 1
+                                            setFormData(prev => ({ ...prev, dayNumber: newDay }))
+                                            openCreateModal()
+                                        }}
+                                        className="w-full mt-4 flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-gray-700 rounded-lg text-gray-500 hover:border-orange-500/50 hover:text-orange-400 transition text-sm"
+                                    >
+                                        <Plus size={16} />
+                                        Añadir día
+                                    </button>
                                 </div>
-                            )}
+                            </div>
+
+                            {/* Main content - Challenges */}
+                            <div className="lg:col-span-3">
+                                {selectedDay !== null ? (
+                                    <>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h2 className="text-xl font-semibold text-white">
+                                                Retos del Día {selectedDay}
+                                            </h2>
+                                            <span className="text-sm text-gray-500">
+                                                {challenges.length} {challenges.length === 1 ? 'reto' : 'retos'}
+                                            </span>
+                                        </div>
+
+                                        {challenges.length === 0 ? (
+                                            <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
+                                                <Calendar size={48} className="text-gray-700 mx-auto mb-3" />
+                                                <p className="text-gray-500 mb-4">No hay retos para este día</p>
+                                                <button
+                                                    onClick={openCreateModal}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition"
+                                                >
+                                                    <Plus size={16} />
+                                                    Crear primer reto
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {challenges.map((ch) => (
+                                                    <div
+                                                        key={ch.id}
+                                                        className="bg-gray-900 rounded-lg border border-gray-800 p-4 hover:border-gray-700 transition"
+                                                    >
+                                                        <div className="flex items-start justify-between gap-4">
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-3 mb-2">
+                                                                    <h3 className="text-lg font-semibold text-white truncate">
+                                                                        {ch.title}
+                                                                    </h3>
+                                                                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${ch.status === 'COMPLETED'
+                                                                            ? 'bg-green-500/20 text-green-400'
+                                                                            : ch.status === 'EXPIRED'
+                                                                                ? 'bg-red-500/20 text-red-400'
+                                                                                : 'bg-yellow-500/20 text-yellow-400'
+                                                                        }`}>
+                                                                        {ch.status === 'COMPLETED' ? 'Completado' : ch.status === 'EXPIRED' ? 'Expirado' : 'Activo'}
+                                                                    </span>
+                                                                </div>
+                                                                {ch.description && (
+                                                                    <p className="text-gray-400 text-sm mb-3">{ch.description}</p>
+                                                                )}
+                                                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                                                                    <span className="flex items-center gap-1">
+                                                                        <Clock size={12} />
+                                                                        {new Date(ch.startTime).toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                    <span className="flex items-center gap-1">
+                                                                        <ChevronRight size={12} />
+                                                                        {new Date(ch.limitTime).toLocaleString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                    <span>{ch.submissionCount} fotos</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    onClick={() => openEditModal(ch)}
+                                                                    className="p-2 text-gray-400 hover:text-orange-400 hover:bg-gray-800 rounded-lg transition"
+                                                                    title="Editar"
+                                                                >
+                                                                    <Pencil size={18} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setDeleteConfirm(ch.id)}
+                                                                    className="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-800 rounded-lg transition"
+                                                                    title="Eliminar"
+                                                                >
+                                                                    <Trash2 size={18} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="bg-gray-900 rounded-lg border border-gray-800 p-12 text-center">
+                                        <Calendar size={48} className="text-gray-700 mx-auto mb-3" />
+                                        <p className="text-gray-500">Selecciona un día o crea el primero</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -419,8 +467,8 @@ export default function AdminPage() {
 
             {/* Create/Edit Modal */}
             {showModal && (
-                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-                    <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-800">
+                <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-gray-900 rounded-xl w-full max-w-md border border-gray-800 my-8">
                         <div className="flex items-center justify-between p-4 border-b border-gray-800">
                             <h2 className="text-lg font-semibold text-white">
                                 {editingChallenge ? 'Editar Reto' : 'Nuevo Reto'}
@@ -444,6 +492,45 @@ export default function AdminPage() {
                                 <div className="bg-green-500/10 border border-green-500/30 text-green-400 px-3 py-2 rounded-lg text-sm flex items-center gap-2">
                                     <CheckCircle2 size={16} />
                                     {success}
+                                </div>
+                            )}
+
+                            {/* Challenge Type Selector - Only show when creating new challenges */}
+                            {!editingChallenge && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                                        Tipo de Reto
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setChallengeType('single-day')}
+                                            className={`p-4 rounded-lg border-2 transition ${challengeType === 'single-day'
+                                                    ? 'border-orange-500 bg-orange-500/10'
+                                                    : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                                                }`}
+                                        >
+                                            <Zap className={`mx-auto mb-2 ${challengeType === 'single-day' ? 'text-orange-400' : 'text-gray-500'}`} size={24} />
+                                            <div className={`text-sm font-medium ${challengeType === 'single-day' ? 'text-orange-400' : 'text-gray-400'}`}>
+                                                Un Día
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">Rápido y simple</div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setChallengeType('custom')}
+                                            className={`p-4 rounded-lg border-2 transition ${challengeType === 'custom'
+                                                    ? 'border-orange-500 bg-orange-500/10'
+                                                    : 'border-gray-700 bg-gray-800 hover:border-gray-600'
+                                                }`}
+                                        >
+                                            <Calendar className={`mx-auto mb-2 ${challengeType === 'custom' ? 'text-orange-400' : 'text-gray-500'}`} size={24} />
+                                            <div className={`text-sm font-medium ${challengeType === 'custom' ? 'text-orange-400' : 'text-gray-400'}`}>
+                                                Personalizado
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">Configuración completa</div>
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 
@@ -491,34 +578,55 @@ export default function AdminPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            {challengeType === 'single-day' && !editingChallenge ? (
+                                // Single-day mode: only show time picker
                                 <div>
                                     <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                                        Inicio *
+                                        Hora *
                                     </label>
                                     <input
-                                        name="startTime"
-                                        type="datetime-local"
-                                        value={formData.startTime}
+                                        name="time"
+                                        type="time"
+                                        value={formData.time}
                                         onChange={handleChange}
                                         className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition [color-scheme:dark]"
                                         required
                                     />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Inicio y fin serán la misma hora
+                                    </p>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                                        Límite *
-                                    </label>
-                                    <input
-                                        name="limitTime"
-                                        type="datetime-local"
-                                        value={formData.limitTime}
-                                        onChange={handleChange}
-                                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition [color-scheme:dark]"
-                                        required
-                                    />
+                            ) : (
+                                // Custom mode: show full datetime pickers
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                                            Inicio *
+                                        </label>
+                                        <input
+                                            name="startTime"
+                                            type="datetime-local"
+                                            value={formData.startTime}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition [color-scheme:dark] text-sm"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                                            Límite *
+                                        </label>
+                                        <input
+                                            name="limitTime"
+                                            type="datetime-local"
+                                            value={formData.limitTime}
+                                            onChange={handleChange}
+                                            className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-orange-500 transition [color-scheme:dark] text-sm"
+                                            required
+                                        />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div className="flex gap-3 pt-2">
                                 <button

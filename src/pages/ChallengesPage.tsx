@@ -165,13 +165,12 @@ export default function ChallengesPage() {
                 <button
                   key={day.day}
                   onClick={() => handleDaySelect(day.day)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition ${
-                    selectedDay === day.day
+                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition ${selectedDay === day.day
                       ? 'bg-orange-500 text-white'
                       : day.status === 'ACTIVE'
                         ? 'bg-gray-800 text-orange-400 border border-orange-500/30'
                         : 'bg-gray-800 text-gray-400'
-                  }`}
+                    }`}
                 >
                   Día {day.day}
                 </button>
@@ -205,7 +204,6 @@ export default function ChallengesPage() {
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={(e) => {
             const id = fileInputRef.current?.dataset.challengeId
@@ -236,13 +234,12 @@ export default function ChallengesPage() {
               return (
                 <div
                   key={challenge.id}
-                  className={`bg-gray-900 rounded-xl border transition ${
-                    isCompleted
+                  className={`bg-gray-900 rounded-xl border transition ${isCompleted
                       ? 'border-green-500/30'
                       : isExpired
                         ? 'border-gray-800'
                         : 'border-gray-800 hover:border-orange-500/30'
-                  }`}
+                    }`}
                 >
                   <div className="p-4">
                     {/* Header */}
@@ -255,13 +252,12 @@ export default function ChallengesPage() {
                           <p className="text-gray-500 text-sm mt-1 line-clamp-2">{challenge.description}</p>
                         )}
                       </div>
-                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                        isCompleted
+                      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${isCompleted
                           ? 'bg-green-500/20 text-green-500'
                           : isExpired
                             ? 'bg-gray-800 text-gray-600'
                             : 'bg-orange-500/20 text-orange-500'
-                      }`}>
+                        }`}>
                         {isCompleted ? <CheckCircle2 size={18} /> : isExpired ? <Clock size={18} /> : <Camera size={18} />}
                       </div>
                     </div>
@@ -270,18 +266,18 @@ export default function ChallengesPage() {
                     <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
                       <Clock size={12} />
                       <span>
-                        {isExpired ? 'Terminó' : 'Hasta'}: {new Date(challenge.limitTime).toLocaleString('es', { 
-                          day: '2-digit', 
-                          month: 'short', 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
+                        {isExpired ? 'Terminó' : 'Hasta'}: {new Date(challenge.limitTime).toLocaleString('es', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
                         })}
                       </span>
                     </div>
 
                     {/* My submission preview */}
                     {mySubmission && (
-                      <div 
+                      <div
                         className="mb-3 rounded-lg overflow-hidden cursor-pointer"
                         onClick={() => setPreviewPhoto(mySubmission)}
                       >
@@ -295,13 +291,12 @@ export default function ChallengesPage() {
 
                     {/* Actions */}
                     <div className="flex items-center justify-between">
-                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                        isCompleted
+                      <span className={`text-xs font-medium px-2 py-1 rounded-full ${isCompleted
                           ? 'bg-green-500/20 text-green-400'
                           : isExpired
                             ? 'bg-gray-800 text-gray-500'
                             : 'bg-orange-500/20 text-orange-400'
-                      }`}>
+                        }`}>
                         {isCompleted ? 'Completado' : isExpired ? 'Expirado' : 'Pendiente'}
                       </span>
 
