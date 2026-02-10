@@ -4,18 +4,47 @@
 
 ### Con Vercel (Recomendado)
 
-1. **Conectar repositorio a Vercel**
-   - Ve a vercel.com y conecta tu repositorio de GitHub
-   - Selecciona el proyecto "youth-retreat-app"
-   - Las variables de entorno se configurarán automáticamente
+El proyecto ya incluye un archivo `vercel.json` configurado para SPAs con Vite.
 
-2. **Configurar variables de entorno**
-   ```
-   VITE_API_URL=https://tu-api.com/api
-   ```
+#### 1. Conectar repositorio a Vercel
 
-3. **Desplegar**
-   - Vercel desplegará automáticamente en cada push a main
+```bash
+# Opción A: Usando Vercel CLI
+npm i -g vercel
+vercel login
+vercel
+```
+
+```bash
+# Opción B: Via Dashboard
+# 1. Ve a https://vercel.com/new
+# 2. Importa tu repositorio de GitHub
+# 3. Vercel detectará automáticamente la configuración de Vite
+```
+
+#### 2. Configurar Variables de Entorno en Vercel
+
+En el dashboard de Vercel, ve a **Settings > Environment Variables** y agrega:
+
+| Variable | Valor | Entornos |
+|----------|-------|----------|
+| `VITE_API_URL` | `https://tu-backend.onrender.com/api` | Production |
+| `VITE_APP_NAME` | `Juventud con Propósito` | All |
+| `VITE_APP_VERSION` | `0.1.0` | All |
+
+> ⚠️ **Importante**: Las variables de Vite deben tener el prefijo `VITE_` para estar disponibles en el cliente.
+
+#### 3. Desplegar
+
+- **Automático**: Cada push a `main` despliega automáticamente
+- **Manual**: Ejecuta `vercel --prod` desde la CLI
+
+#### 4. Verificar Despliegue
+
+Después del despliegue, verifica:
+- [ ] La app carga correctamente
+- [ ] Las rutas SPA funcionan (navegación directa a `/dashboard`, etc.)
+- [ ] La conexión con el backend funciona (login, registro)
 
 ### Con Netlify
 
